@@ -99,6 +99,11 @@ export const KPI_MULTIPLIER_RULE = [
   { min: 100, max: Number.POSITIVE_INFINITY, multiplier: 1.5 },
 ];
 
+export const EMPLOYEE_INCENTIVE_THRESHOLD = {
+  minimumFinalScore: 70,
+  minimumTargetAchievement: 85,
+};
+
 export const CALCULATION_STATUS = [
   "Draft",
   "Calculated",

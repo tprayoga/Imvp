@@ -10,6 +10,7 @@ const options = [
   { value: "bonusPool", label: "Bonus Pool" },
   { value: "roleShare", label: "Role Share" },
   { value: "kpiMultiplier", label: "KPI Multiplier" },
+  { value: "incentiveThreshold", label: "Incentive Threshold" },
   { value: "collectionGate", label: "Collection Gate" },
   { value: "employee", label: "Employee" },
 ];
@@ -40,7 +41,7 @@ export default function MasterPage() {
             onChange={(event) => {
               const nextKey = event.target.value;
               setKey(nextKey);
-              setText(JSON.stringify(state.masterData[nextKey], null, 2));
+              setText(JSON.stringify(state.masterData[nextKey] ?? {}, null, 2));
             }}
             options={options}
           />

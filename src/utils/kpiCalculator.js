@@ -1,4 +1,8 @@
-import { KPI_MULTIPLIER_RULE, KPI_WEIGHT_CONFIG } from "@/data/configData";
+import {
+  EMPLOYEE_INCENTIVE_THRESHOLD,
+  KPI_MULTIPLIER_RULE,
+  KPI_WEIGHT_CONFIG,
+} from "@/data/configData";
 
 function safeNumber(value) {
   return Number(value) || 0;
@@ -26,15 +30,30 @@ export function getMultiplier(score, multiplierRule = KPI_MULTIPLIER_RULE) {
   return match ? match.multiplier : 0;
 }
 
+export function calculateTargetAchievement(record) {
+  const target = safeNumber(record.targetValue);
+  const actual = safeNumber(record.actualValue);
+  if (target <= 0) return 0;
+  return (actual / target) * 100;
+}
+
 export function calculateKpiFields(record, options = {}) {
   const finalScore = calculateFinalScore(record, options.weightsByRole);
   const multiplier = getMultiplier(finalScore, options.multiplierRule);
   const baseIncentive = safeNumber(record.baseIncentive);
+  const targetAchievement = calculateTargetAchievement(record);
+  const threshold = options.thresholdConfig || EMPLOYEE_INCENTIVE_THRESHOLD;
+  const eligibleForIncentive =
+    finalScore >= safeNumber(threshold.minimumFinalScore) &&
+    targetAchievement >= safeNumber(threshold.minimumTargetAchievement);
+  const finalIncentive = eligibleForIncentive ? baseIncentive * multiplier : 0;
 
   return {
     ...record,
     finalScore,
     multiplier,
-    finalIncentive: baseIncentive * multiplier,
+    targetAchievement,
+    eligibleForIncentive,
+    finalIncentive,
   };
 }

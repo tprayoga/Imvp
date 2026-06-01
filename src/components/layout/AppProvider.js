@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { INITIAL_APP_STATE } from "@/data/dummyData";
+import { EMPLOYEE_INCENTIVE_THRESHOLD } from "@/data/configData";
 import {
   clearStoredSession,
   getStoredSession,
@@ -29,18 +30,54 @@ function upsertById(items, item) {
   return copy;
 }
 
+function ensureStateSchema(rawState) {
+  const base = INITIAL_APP_STATE;
+  const raw = rawState || {};
+  const mergedMasterData = {
+    ...base.masterData,
+    ...(raw.masterData || {}),
+  };
+
+  if (!mergedMasterData.incentiveThreshold) {
+    mergedMasterData.incentiveThreshold = EMPLOYEE_INCENTIVE_THRESHOLD;
+  }
+
+  const rawKpis = Array.isArray(raw.kpis) ? raw.kpis : base.kpis;
+  const kpis = rawKpis.map((item) => ({
+    targetValue: item?.targetValue ?? 100,
+    actualValue: item?.actualValue ?? item?.achievementScore ?? 0,
+    ...item,
+  }));
+
+  return {
+    ...base,
+    ...raw,
+    projects: Array.isArray(raw.projects) ? raw.projects : base.projects,
+    employees: Array.isArray(raw.employees) ? raw.employees : base.employees,
+    kpis,
+    incentives: Array.isArray(raw.incentives) ? raw.incentives : base.incentives,
+    payouts: Array.isArray(raw.payouts) ? raw.payouts : base.payouts,
+    auditLogs: Array.isArray(raw.auditLogs) ? raw.auditLogs : base.auditLogs,
+    approvalHistory: Array.isArray(raw.approvalHistory)
+      ? raw.approvalHistory
+      : base.approvalHistory,
+    masterData: mergedMasterData,
+  };
+}
+
 function withDerivedState(state) {
   const projectTypeConfig = state.masterData?.projectType;
   const collectionGates = state.masterData?.collectionGate;
   const kpiWeights = state.masterData?.kpiWeights;
   const multiplierRule = state.masterData?.kpiMultiplier;
+  const thresholdConfig = state.masterData?.incentiveThreshold;
 
   const projects = state.projects.map((project) =>
     calculateProjectFinancials(project, { projectTypeConfig, collectionGates })
   );
 
   let kpis = state.kpis.map((kpi) =>
-    calculateKpiFields(kpi, { weightsByRole: kpiWeights, multiplierRule })
+    calculateKpiFields(kpi, { weightsByRole: kpiWeights, multiplierRule, thresholdConfig })
   );
 
   projects.forEach((project) => {
@@ -114,14 +151,16 @@ function withDerivedState(state) {
 }
 
 export function AppProvider({ children }) {
-  const [state, setState] = useState(() => withDerivedState(INITIAL_APP_STATE));
+  const [state, setState] = useState(() =>
+    withDerivedState(ensureStateSchema(INITIAL_APP_STATE))
+  );
   const [session, setSession] = useState(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       const stored = getStoredState();
-      if (stored) setState(withDerivedState(stored));
+      if (stored) setState(withDerivedState(ensureStateSchema(stored)));
 
       const storedSession = getStoredSession();
       if (storedSession) setSession(storedSession);

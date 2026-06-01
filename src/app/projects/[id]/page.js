@@ -109,8 +109,23 @@ export default function ProjectDetailPage() {
           columns={[
             { key: "employeeName", header: "Employee" },
             { key: "role", header: "Role" },
+            {
+              key: "targetActual",
+              header: "Target / Aktual",
+              render: (row) => `${row.targetValue || 0} / ${row.actualValue || 0}`,
+            },
+            {
+              key: "targetAchievement",
+              header: "Achv%",
+              render: (row) => `${(row.targetAchievement || 0).toFixed(1)}%`,
+            },
             { key: "finalScore", header: "Final Score", render: (row) => row.finalScore.toFixed(1) },
             { key: "multiplier", header: "Multiplier" },
+            {
+              key: "eligibility",
+              header: "Eligibility",
+              render: (row) => (row.eligibleForIncentive ? "Eligible" : "Not Eligible"),
+            },
             { key: "baseIncentive", header: "Base Incentive", render: (row) => <CurrencyText value={row.baseIncentive} /> },
             {
               key: "finalIncentive",

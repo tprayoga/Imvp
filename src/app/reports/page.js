@@ -22,6 +22,9 @@ export default function ReportsPage() {
     employeeName: item.employeeName,
     role: item.role,
     projectId: item.projectId,
+    targetActual: `${item.targetValue || 0} / ${item.actualValue || 0}`,
+    targetAchievement: `${(item.targetAchievement || 0).toFixed(1)}%`,
+    eligibility: item.eligibleForIncentive ? "Eligible" : "Not Eligible",
     finalIncentive: item.finalIncentive,
   }));
 
@@ -69,6 +72,9 @@ export default function ReportsPage() {
             { key: "employeeName", header: "Employee" },
             { key: "role", header: "Role" },
             { key: "projectId", header: "Project" },
+            { key: "targetActual", header: "Target / Aktual" },
+            { key: "targetAchievement", header: "Achv%" },
+            { key: "eligibility", header: "Eligibility" },
             {
               key: "finalIncentive",
               header: "Final Incentive",

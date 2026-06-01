@@ -8,12 +8,15 @@ import SelectInput from "@/components/ui/SelectInput";
 import CurrencyText from "@/components/ui/CurrencyText";
 import { useAppData } from "@/components/layout/AppProvider";
 import { calculateKpiFields } from "@/utils/kpiCalculator";
+import { EMPLOYEE_INCENTIVE_THRESHOLD } from "@/data/configData";
 
 const defaultForm = {
   id: "",
   projectId: "",
   employeeName: "",
   role: "Sales",
+  targetValue: 100,
+  actualValue: 0,
   achievementScore: 80,
   collectionScore: 80,
   costMarginScore: 80,
@@ -21,6 +24,18 @@ const defaultForm = {
   timelineScore: 80,
   baseIncentive: 0,
 };
+
+function EligibilityBadge({ eligible }) {
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+        eligible ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+      }`}
+    >
+      {eligible ? "Eligible" : "Not Eligible"}
+    </span>
+  );
+}
 
 export default function KpiPage() {
   const { state, saveKpi } = useAppData();
@@ -41,15 +56,33 @@ export default function KpiPage() {
     [state.kpis, projectFilter, roleFilter, employeeFilter]
   );
 
+  const salesRows = useMemo(
+    () => filtered.filter((row) => row.role === "Sales"),
+    [filtered]
+  );
+
+  const salesSummary = useMemo(() => {
+    const totalTarget = salesRows.reduce((acc, row) => acc + (Number(row.targetValue) || 0), 0);
+    const totalActual = salesRows.reduce((acc, row) => acc + (Number(row.actualValue) || 0), 0);
+    const achievement = totalTarget > 0 ? (totalActual / totalTarget) * 100 : 0;
+    return { totalTarget, totalActual, achievement };
+  }, [salesRows]);
+
+  const threshold =
+    state.masterData.incentiveThreshold || EMPLOYEE_INCENTIVE_THRESHOLD;
+
   const preview = calculateKpiFields(form, {
     weightsByRole: state.masterData.kpiWeights,
     multiplierRule: state.masterData.kpiMultiplier,
+    thresholdConfig: threshold,
   });
 
   const handleSave = (event) => {
     event.preventDefault();
     saveKpi({
       ...form,
+      targetValue: Number(form.targetValue),
+      actualValue: Number(form.actualValue),
       achievementScore: Number(form.achievementScore),
       collectionScore: Number(form.collectionScore),
       costMarginScore: Number(form.costMarginScore),
@@ -70,7 +103,10 @@ export default function KpiPage() {
             onChange={(event) => setProjectFilter(event.target.value)}
             options={[
               { value: "all", label: "All Project" },
-              ...state.projects.map((item) => ({ value: item.id, label: `${item.projectCode} - ${item.projectName}` })),
+              ...state.projects.map((item) => ({
+                value: item.id,
+                label: `${item.projectCode} - ${item.projectName}`,
+              })),
             ]}
           />
           <SelectInput
@@ -109,6 +145,48 @@ export default function KpiPage() {
         </div>
       </div>
 
+      <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
+        <p className="font-medium text-slate-900">Threshold Bonus/Insentif Employee</p>
+        <p>Minimum Final Score: {threshold.minimumFinalScore}</p>
+        <p>Minimum Target Achievement: {threshold.minimumTargetAchievement}%</p>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Sales Target (Total)</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900">{salesSummary.totalTarget}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Sales Aktual (Total)</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900">{salesSummary.totalActual}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Sales Achievement</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900">
+            {salesSummary.achievement.toFixed(1)}%
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 className="mb-3 text-sm font-semibold text-slate-800">Sales Target vs Aktual</h3>
+        <DataTable
+          data={salesRows}
+          emptyMessage="Belum ada data KPI role Sales"
+          columns={[
+            { key: "employeeName", header: "Sales" },
+            { key: "projectId", header: "Project" },
+            { key: "targetValue", header: "Target" },
+            { key: "actualValue", header: "Aktual" },
+            {
+              key: "targetAchievement",
+              header: "Achievement",
+              render: (row) => `${(row.targetAchievement || 0).toFixed(1)}%`,
+            },
+          ]}
+        />
+      </div>
+
       <DataTable
         data={filtered}
         columns={[
@@ -116,15 +194,25 @@ export default function KpiPage() {
           { key: "employeeName", header: "Employee" },
           { key: "role", header: "Role" },
           {
+            key: "targetActual",
+            header: "Target / Aktual",
+            render: (row) => `${row.targetValue || 0} / ${row.actualValue || 0}`,
+          },
+          {
+            key: "targetAchievement",
+            header: "Achv%",
+            render: (row) => `${(row.targetAchievement || 0).toFixed(1)}%`,
+          },
+          {
             key: "finalScore",
             header: "Final Score",
             render: (row) => row.finalScore.toFixed(1),
           },
           { key: "multiplier", header: "Multiplier" },
           {
-            key: "baseIncentive",
-            header: "Base Incentive",
-            render: (row) => <CurrencyText value={row.baseIncentive} />,
+            key: "eligible",
+            header: "Eligibility",
+            render: (row) => <EligibilityBadge eligible={row.eligibleForIncentive} />,
           },
           {
             key: "finalIncentive",
@@ -158,7 +246,10 @@ export default function KpiPage() {
             onChange={(event) => setForm((prev) => ({ ...prev, projectId: event.target.value }))}
             options={[
               { value: "", label: "Select Project" },
-              ...state.projects.map((item) => ({ value: item.id, label: `${item.projectCode} - ${item.projectName}` })),
+              ...state.projects.map((item) => ({
+                value: item.id,
+                label: `${item.projectCode} - ${item.projectName}`,
+              })),
             ]}
           />
           <SelectInput
@@ -186,6 +277,18 @@ export default function KpiPage() {
             type="number"
             value={form.baseIncentive}
             onChange={(e) => setForm((prev) => ({ ...prev, baseIncentive: e.target.value }))}
+          />
+          <FormInput
+            label="Target KPI"
+            type="number"
+            value={form.targetValue}
+            onChange={(e) => setForm((prev) => ({ ...prev, targetValue: e.target.value }))}
+          />
+          <FormInput
+            label="Aktual KPI"
+            type="number"
+            value={form.actualValue}
+            onChange={(e) => setForm((prev) => ({ ...prev, actualValue: e.target.value }))}
           />
           <FormInput
             label="Achievement Score"
@@ -219,8 +322,14 @@ export default function KpiPage() {
           />
 
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-2">
+            <p className="text-sm text-slate-700">
+              Preview Target Achievement: {preview.targetAchievement.toFixed(2)}%
+            </p>
             <p className="text-sm text-slate-700">Preview Final Score: {preview.finalScore.toFixed(2)}</p>
             <p className="text-sm text-slate-700">Preview Multiplier: {preview.multiplier}</p>
+            <p className="text-sm text-slate-700">
+              Eligibility: <EligibilityBadge eligible={preview.eligibleForIncentive} />
+            </p>
             <p className="text-sm text-slate-700">
               Preview Final Incentive: <CurrencyText value={preview.finalIncentive} />
             </p>
